@@ -5,7 +5,10 @@
   "documentation": "https://github.com/bremor/public_transport_victoria",
   "issue_tracker": "https://github.com/bremor/public_transport_victoria/issues",
   "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
   "dependencies": [],
-  "version": "0.3.2",
+  "version": "0.6.1",
   "codeowners": ["@bremor", "@catatonicChimp"]
 }

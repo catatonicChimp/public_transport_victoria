@@ -25,7 +25,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     await coordinator.async_config_entry_first_refresh()
 
     # Create sensors for the first 5 departures
-    new_devices = [PublicTransportVictoriaSensor(coordinator, i) for i in range(5)]
+    new_devices = [PublicTransportVictoriaSensor(coordinator, i, config_entry.entry_id) for i in range(5)]
 
     async_add_entities(new_devices)
 
@@ -45,19 +45,23 @@ class PublicTransportVictoriaDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from Public Transport Victoria."""
-        _LOGGER.debug("Fetching new data from Public Transport Victoria API.")
-        await self.connector.async_update()
-        return self.connector.departures  # Return the latest data
-
+        try:
+            _LOGGER.debug("Fetching new data from Public Transport Victoria API.")
+            await self.connector.async_update()
+            return self.connector.departures  # Return the latest data
+        except Exception as e:
+            _LOGGER.error("Failed to fetch data from Public Transport Victoria: %s", e)
+            return []  # Returning empty data set if fetching fails
 
 class PublicTransportVictoriaSensor(CoordinatorEntity, Entity):
     """Representation of a Public Transport Victoria Sensor."""
 
-    def __init__(self, coordinator, number):
+    def __init__(self, coordinator, number, entry_id):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._number = number
         self._connector = coordinator.connector
+        self._entry_id = entry_id
 
     @property
     def state(self):
@@ -79,10 +83,11 @@ class PublicTransportVictoriaSensor(CoordinatorEntity, Entity):
     @property
     def unique_id(self):
         """Return Unique ID string."""
-        return "{} line to {} from {} {}".format(
-            self._connector.route_name,
-            self._connector.direction_name,
-            self._connector.stop_name,
+        return "{}-{}-{}-{}-{}".format(
+            self._entry_id,
+            self._connector.route,
+            self._connector.direction,
+            self._connector.stop,
             self._number,
         )
 

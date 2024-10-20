@@ -1,216 +1,144 @@
 """Config flow for Public Transport Victoria integration."""
 import logging
+from typing import Any, Dict, Optional
 
 import voluptuous as vol
+from homeassistant import config_entries
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResult
+from homeassistant.exceptions import HomeAssistantError
 
-from homeassistant import config_entries, exceptions
-from homeassistant.const import CONF_API_KEY, CONF_ID
+from .PublicTransportVictoria.public_transport_victoria import PTVApi
+from .PublicTransportVictoria.api.routes import RouteRequest, RoutesAPI
 
-from .const import (
-    CONF_DIRECTION, 
-    CONF_DIRECTION_NAME, 
-    CONF_ROUTE, 
-    CONF_ROUTE_NAME,
-    CONF_ROUTE_TYPE, 
-    CONF_ROUTE_TYPE_NAME, 
-    CONF_STOP, 
-    CONF_STOP_NAME, 
-    DOMAIN
-)
-from .PublicTransportVictoria.public_transport_victoria import Connector
+from .const import DOMAIN, CONF_DEV_ID, CONF_API_KEY, CONF_ROUTE_TYPE, CONF_STOP_ID, CONF_ROUTE_ID, CONF_DIRECTION_ID
 
 _LOGGER = logging.getLogger(__name__)
 
+class CannotConnect(HomeAssistantError):
+    """Error to indicate we cannot connect."""
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class InvalidAuth(HomeAssistantError):
+    """Error to indicate there is invalid auth."""
+
+class PTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Public Transport Victoria."""
 
     VERSION = 1
 
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+    def __init__(self):
+        """Initialize the config flow."""
+        self.ptv_api: Optional[PTVApi] = None
+        self.data: Dict[str, Any] = {}
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         """Handle the initial step."""
-        # Initialize self.data if it doesn't exist
-        if not hasattr(self, "data"):
-            self.data = {}
-        _LOGGER.debug("Initialized self.data: %s", self.data)
+        errors: Dict[str, str] = {}
 
-        # Check if there is already a config entry for this integration
-        existing_entries = self._async_current_entries()
-        if existing_entries:
-            _LOGGER.debug("Existing entry found, using existing credentials.")
-            entry = existing_entries[0]
-            _LOGGER.debug("Existing entry data: %s", entry.data)
-
-            # Copy id and api_key to self.data so it persists across steps
-            self.data[CONF_ID] = entry.data[CONF_ID]
-            self.data[CONF_API_KEY] = entry.data[CONF_API_KEY]
-            _LOGGER.debug("Carried over API key and ID into self.data: %s", self.data)
-
-            self.connector = Connector(
-                self.hass, entry.data[CONF_ID], entry.data[CONF_API_KEY]
-            )
-            self.route_types = await self.connector.async_route_types()
-            return await self.async_step_route_types()
-
-        # If no existing entry, prompt user for API key and ID
-        data_schema = vol.Schema(
-            {
-                vol.Required(CONF_ID): str,
-                vol.Required(CONF_API_KEY): str,
-            }
-        )
-
-        errors = {}
         if user_input is not None:
             try:
-                _LOGGER.debug("Received user input: %s", user_input)
-                # Initialize connector to validate API key and fetch route types
-                self.connector = Connector(
-                    self.hass, user_input[CONF_ID], user_input[CONF_API_KEY]
-                )
-                self.route_types = await self.connector.async_route_types()
-
-                if not self.route_types:
+                self.ptv_api = PTVApi(self.hass, user_input[CONF_DEV_ID], user_input[CONF_API_KEY])
+                # Test the API connection using a simple API call
+                # For example, let's try to get route types
+                route_types = await self.ptv_api.get_route_types()
+                if route_types:  # If we get a valid response, consider it a success
+                    self.data.update(user_input)
+                    return await self.async_step_route_type()
+                else:
                     raise CannotConnect
-
-                # Store the API key and ID in self.data for use in subsequent steps
-                self.data[CONF_ID] = user_input[CONF_ID]
-                self.data[CONF_API_KEY] = user_input[CONF_API_KEY]
-                _LOGGER.debug("Stored API key and ID in self.data: %s", self.data)
-
-                return await self.async_step_route_types()
-
             except CannotConnect:
-                _LOGGER.error("Cannot connect to Public Transport Victoria API.")
                 errors["base"] = "cannot_connect"
-            except Exception:
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
 
-        # Show the form to input the API ID and Key
         return self.async_show_form(
-            step_id="user", data_schema=data_schema, errors=errors
+            step_id="user",
+            data_schema=vol.Schema({
+                vol.Required(CONF_DEV_ID): str,
+                vol.Required(CONF_API_KEY): str,
+            }),
+            errors=errors,
         )
 
-    async def async_step_route_types(self, user_input=None):
-        """Handle the route types step."""
-        data_schema = vol.Schema({
-            vol.Required(CONF_ROUTE_TYPE, default=0): vol.In(self.route_types),
-        })
+    async def async_step_route_type(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
+        """Handle route type selection."""
+        errors: Dict[str, str] = {}
 
-        errors = {}
         if user_input is not None:
-            try:
-                self.routes = await self.connector.async_routes(
-                    user_input[CONF_ROUTE_TYPE]
-                )
+            self.data.update(user_input)
+            return await self.async_step_stop()
 
-                self.data[CONF_ROUTE_TYPE] = user_input[CONF_ROUTE_TYPE]
-                self.data[CONF_ROUTE_TYPE_NAME] = self.route_types[user_input[CONF_ROUTE_TYPE]]
+        route_types = await self.ptv_api.route_types_api.get_route_types()
+        route_type_options = {str(rt['route_type']): rt['route_type_name'] for rt in route_types['route_types']}
 
-                return await self.async_step_routes()
-
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-        # If there is no user input or there were errors, show the form again.
         return self.async_show_form(
-            step_id="route_types", data_schema=data_schema, errors=errors
+            step_id="route_type",
+            data_schema=vol.Schema({
+                vol.Required(CONF_ROUTE_TYPE): vol.In(route_type_options),
+            }),
+            errors=errors,
         )
 
-    async def async_step_routes(self, user_input=None):
-        """Handle the route types step."""
-        data_schema = vol.Schema({
-            vol.Required(CONF_ROUTE, default=next(iter(self.routes))): vol.In(self.routes),
-        })
+    async def async_step_stop(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
+        """Handle stop selection."""
+        errors: Dict[str, str] = {}
 
-        errors = {}
         if user_input is not None:
-            try:
-                self.directions = await self.connector.async_directions(
-                    user_input[CONF_ROUTE]
-                )
+            self.data.update(user_input)
+            return await self.async_step_route()
 
-                self.data[CONF_ROUTE] = user_input[CONF_ROUTE]
-                self.data[CONF_ROUTE_NAME] = self.routes[user_input[CONF_ROUTE]]
-
-                return await self.async_step_directions()
-
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-        # If there is no user input or there were errors, show the form again.
+        # Here you would typically fetch stops based on the selected route type
+        # For simplicity, we're just asking for a stop ID directly
         return self.async_show_form(
-            step_id="routes", data_schema=data_schema, errors=errors
+            step_id="stop",
+            data_schema=vol.Schema({
+                vol.Required(CONF_STOP_ID): int,
+            }),
+            errors=errors,
         )
 
-    async def async_step_directions(self, user_input=None):
-        """Handle the direction types step."""
-        data_schema = vol.Schema({
-            vol.Required(CONF_DIRECTION, default=next(iter(self.directions))): vol.In(self.directions),
-        })
+    async def async_step_route(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
+        """Handle route selection."""
+        errors: Dict[str, str] = {}
 
-        errors = {}
         if user_input is not None:
-            try:
-                self.stops = await self.connector.async_stops(
-                    self.data[CONF_ROUTE]
-                )
+            self.data.update(user_input)
+            return await self.async_step_direction()
+        routes_api = RoutesAPI(self.ptv_api.client)
+        request = RouteRequest(
+            route_types=[self.data[CONF_ROUTE_TYPE]]
+        )
+        routes = await routes_api.get_all_routes(request)
+        route_options = {str(r['route_id']): r['route_name'] for r in routes['routes']}
 
-                self.data[CONF_DIRECTION] = user_input[CONF_DIRECTION]
-                self.data[CONF_DIRECTION_NAME] = self.directions[user_input[CONF_DIRECTION]]
-
-                return await self.async_step_stops()
-
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-        # If there is no user input or there were errors, show the form again.
         return self.async_show_form(
-            step_id="directions", data_schema=data_schema, errors=errors
+            step_id="route",
+            data_schema=vol.Schema({
+                vol.Required(CONF_ROUTE_ID): vol.In(route_options),
+            }),
+            errors=errors,
         )
 
-    async def async_step_stops(self, user_input=None):
-        """Handle the stops types step."""
-        data_schema = vol.Schema({
-            vol.Required(CONF_STOP, default=next(iter(self.stops))): vol.In(self.stops),
-        })
+    async def async_step_direction(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
+        """Handle direction selection."""
+        errors: Dict[str, str] = {}
 
-        errors = {}
         if user_input is not None:
-            try:
-                self.data[CONF_STOP] = user_input[CONF_STOP]
-                self.data[CONF_STOP_NAME] = self.stops[user_input[CONF_STOP]]
+            self.data.update(user_input)
+            return self.async_create_entry(title="Public Transport Victoria", data=self.data)
 
-                title = "{} line to {} from {}".format(
-                    self.data[CONF_ROUTE_NAME],
-                    self.data[CONF_DIRECTION_NAME],
-                    self.data[CONF_STOP_NAME]
-                )
-
-                return self.async_create_entry(title=title, data=self.data)
-
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-        # If there is no user input or there were errors, show the form again.
-        return self.async_show_form(
-            step_id="stops", data_schema=data_schema, errors=errors
+        directions = await self.ptv_api.directions_api.get_directions_for_route(
+            self.data[CONF_ROUTE_ID]
         )
+        direction_options = {str(d['direction_id']): d['direction_name'] for d in directions['directions']}
 
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""
+        return self.async_show_form(
+            step_id="direction",
+            data_schema=vol.Schema({
+                vol.Required(CONF_DIRECTION_ID): vol.In(direction_options),
+            }),
+            errors=errors,
+        )

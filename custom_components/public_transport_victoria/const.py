@@ -1,12 +1,22 @@
 """Constants for the Public Transport Victoria integration."""
 
+DOMAIN = "public_transport_victoria"
+CONF_DEV_ID = "dev_id"
+CONF_API_KEY = "api_key"
 CONF_DIRECTION = "direction"
+CONF_DIRECTION_ID = "direction_id"
 CONF_DIRECTION_NAME = "direction_name"
 CONF_ROUTE = "route"
+CONF_ROUTE_ID = "route_id"
 CONF_ROUTE_NAME = "route_name"
 CONF_ROUTE_TYPE = "route_type"
 CONF_ROUTE_TYPE_NAME = "route_type_name"
 CONF_STOP = "stop"
+CONF_STOP_ID = "stop_id"
 CONF_STOP_NAME = "stop_name"
-DOMAIN = "public_transport_victoria"
+CONF_PLATFORM = "platform"
+CONF_DESTINATION = "destination"
+CONF_EXPRESS = "express"
+PLATFORMS = ["sensor"]
+
 ATTRIBUTION = "Licensed from Public Transport Victoria under a Creative Commons Attribution 4.0 International Licence"

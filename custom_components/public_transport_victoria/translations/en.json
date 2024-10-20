@@ -11,7 +11,7 @@
             "user": {
                 "title": "Set up Public Transport Victoria API",
                 "data": {
-                    "id": "Developer ID",
+                    "dev_id": "Developer ID",
                     "api_key": "Developer Key"
                 }
             },
