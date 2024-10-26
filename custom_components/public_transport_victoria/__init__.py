@@ -33,21 +33,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.data.setdefault(DOMAIN, {})
         _LOGGER.info("Starting setup of Public Transport Victoria integration")
 
-    dev_id = entry.data.get(CONF_DEV_ID)
-    api_key = entry.data.get(CONF_API_KEY)
-
+    config_data = dict(entry.data)
+    print(config_data)
     api = PTVApi(
         hass,
-        dev_id,
-        api_key,
-        entry.data[CONF_ROUTE_TYPE],
-        entry.data[CONF_ROUTE],
-        entry.data[CONF_DIRECTION],
-        entry.data[CONF_STOP],
-        entry.data[CONF_ROUTE_TYPE_NAME],
-        entry.data[CONF_ROUTE_NAME],
-        entry.data[CONF_DIRECTION_NAME],
-        entry.data[CONF_STOP_NAME],
+        config_data.pop(CONF_DEV_ID),
+        config_data.pop(CONF_API_KEY),
     )
 
     coordinator = PTVDataUpdateCoordinator(hass, api=api)

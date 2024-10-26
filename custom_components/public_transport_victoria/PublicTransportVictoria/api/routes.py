@@ -20,10 +20,13 @@ class RoutesAPI:
         """View all routes."""
         path = "/v3/routes"
         params = {}
+        
         if request.route_types:
             params["route_types"] = ",".join(map(str, request.route_types))
+        
         if request.route_name:
             params["route_name"] = request.route_name
+        
         return await self.client.get(path, params=params)
 
     async def get_route_by_id(self, route_id: int):

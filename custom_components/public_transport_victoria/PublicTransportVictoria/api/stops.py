@@ -49,7 +49,8 @@ class StopsAPI:
 
     async def get_stops_by_distance(self, request: StopsByDistanceRequest):
         """View all stops near a specific location."""
-        path = "/v3/stops/location/{request.latitude},{request.longitude}"
+        path = f"/v3/stops/location/{request.latitude},{request.longitude}"
+        
         params = {
             "route_types": ",".join(map(str, request.route_types)) if request.route_types else None,
             "max_results": request.max_results,

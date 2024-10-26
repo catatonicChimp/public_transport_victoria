@@ -6,7 +6,7 @@ import datetime
 from homeassistant.util.dt import get_time_zone
 
 from .api.client import PTVApiClient
-from .api.departures import DeparturesAPI
+from .api.departures import DeparturesAPI, DepartureRequest
 from .api.directions import DirectionsAPI
 from .api.disruptions import DisruptionsAPI
 from .api.patterns import PatternsAPI
@@ -61,9 +61,9 @@ class PTVApi:
         
         return departures
     
-    async def get_route_types(self):
-        """Get route types."""
-        return await self.route_types_api.get_route_types()
+    # async def get_route_types(self):
+    #     """Get route types."""
+    #     return await self.route_types_api.get_route_types()
 
     def _convert_utc_to_local(self, utc_time: str) -> str:
         """Convert UTC to Home Assistant local time."""
