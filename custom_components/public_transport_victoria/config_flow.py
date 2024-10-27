@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
@@ -327,41 +327,31 @@ class PTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_search_by_map(
-        self, user_input: Optional[Dict[str, Any]] = None
-    ) -> FlowResult:
-        """Handle station search by map."""
-        errors: Dict[str, str] = {}
-
-        if user_input is not None:
+    async def async_step_search_by_map(self, user_input=None):
+        if user_input:
             try:
-                latitude = user_input["location"]["latitude"]
-                longitude = user_input["location"]["longitude"]
-                # Search for stations near these coordinates using the PTV API
-                stations = await self.ptv_api.stops_api.search_stops(
-                    latitude, longitude
-                )
-                if stations:
-                    self.stations = stations
-                    return await self.async_step_select_station()
-                else:
-                    errors["base"] = "no_stations_found"
-            except Exception:  # pylint: disable=broad-except
+                lat = user_input["location"]["latitude"]
+                lon = user_input["location"]["longitude"]
+                _LOGGER.debug(f"Selected location: {lat}, {lon}")
+                return await self.async_step_select_station()
+            except Exception as e:
                 _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+                return self.async_show_form(
+                    step_id="search_by_map",
+                    data_schema=self.search_schema,
+                    errors={"base": "unknown"}
+                )
 
         return self.async_show_form(
             step_id="search_by_map",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("location"): selector.LocationSelector(
-                        radius=True,
-                        icon="mdi:train-station",
-                    ),
-                }
-            ),
-            errors=errors,
+            data_schema=self.search_schema
         )
+
+    @property
+    def search_schema(self):
+        return vol.Schema({
+            vol.Required("location"): selector.LocationSelector(),
+        })
 
     async def async_step_select_station(
         self, user_input: Optional[Dict[str, Any]] = None
@@ -614,3 +604,4 @@ class PTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
             errors=errors,
         )
+

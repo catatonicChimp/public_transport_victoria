@@ -9,25 +9,20 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
 from homeassistant.const import ATTR_ATTRIBUTION
-from .const import ATTRIBUTION, DOMAIN
+from .const import ATTRIBUTION, DOMAIN, CONF_ROUTE_NAME, CONF_DIRECTION_NAME, CONF_STOP_NAME
 
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = datetime.timedelta(minutes=10)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add sensors for passed config_entry in HA."""
-    connector = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    # Create the coordinator to manage polling
-    coordinator = PublicTransportVictoriaDataUpdateCoordinator(hass, connector)
+    sensors = []
+    for i in range(5):  # Create 5 sensors for the next 5 departures
+        sensors.append(PublicTransportVictoriaSensor(coordinator, i, config_entry))
 
-    # Fetch initial data
-    await coordinator.async_config_entry_first_refresh()
-
-    # Create sensors for the first 5 departures
-    new_devices = [PublicTransportVictoriaSensor(coordinator, i, config_entry.entry_id) for i in range(5)]
-
-    async_add_entities(new_devices)
+    async_add_entities(sensors, True)
 
 
 class PublicTransportVictoriaDataUpdateCoordinator(DataUpdateCoordinator):
@@ -56,46 +51,38 @@ class PublicTransportVictoriaDataUpdateCoordinator(DataUpdateCoordinator):
 class PublicTransportVictoriaSensor(CoordinatorEntity, Entity):
     """Representation of a Public Transport Victoria Sensor."""
 
-    def __init__(self, coordinator, number, entry_id):
+    def __init__(self, coordinator, index, config_entry):
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._number = number
-        self._connector = coordinator.connector
-        self._entry_id = entry_id
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        if len(self.coordinator.data) > self._number:
-            return self.coordinator.data[self._number].get("departure", "No data")
-        return "No data"
+        self._index = index
+        self._config_entry = config_entry
+        self._attr_unique_id = f"{config_entry.entry_id}_{index}"
 
     @property
     def name(self):
         """Return the name of the sensor."""
-        return "{} line to {} from {} {}".format(
-            self._connector.route_name,
-            self._connector.direction_name,
-            self._connector.stop_name,
-            self._number,
-        )
+        route_name = self._config_entry.data.get(CONF_ROUTE_NAME, "Unknown Route")
+        direction_name = self._config_entry.data.get(CONF_DIRECTION_NAME, "Unknown Direction")
+        stop_name = self._config_entry.data.get(CONF_STOP_NAME, "Unknown Stop")
+        return f"PTV {route_name} to {direction_name} from {stop_name} ({self._index + 1})"
 
     @property
-    def unique_id(self):
-        """Return Unique ID string."""
-        return "{}-{}-{}-{}-{}".format(
-            self._entry_id,
-            self._connector.route,
-            self._connector.direction,
-            self._connector.stop,
-            self._number,
-        )
+    def state(self):
+        """Return the state of the sensor."""
+        if self.coordinator.data and len(self.coordinator.data) > self._index:
+            return self.coordinator.data[self._index].get("departure", "No data")
+        return "No data"
 
     @property
     def extra_state_attributes(self):
         """Return the state attributes of the sensor."""
-        if len(self.coordinator.data) > self._number:
-            attr = self.coordinator.data[self._number]
-            attr[ATTR_ATTRIBUTION] = ATTRIBUTION
-            return attr
-        return {}
+        attrs = {}
+        if self.coordinator.data and len(self.coordinator.data) > self._index:
+            attrs = self.coordinator.data[self._index].copy()
+        attrs[ATTR_ATTRIBUTION] = ATTRIBUTION
+        return attrs
+
+    @property
+    def device_class(self):
+        """Return the device class."""
+        return "timestamp"
