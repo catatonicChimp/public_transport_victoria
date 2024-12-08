@@ -4,37 +4,37 @@
       "user": {
         "title": "[%key:common::config_flow::title%]",
         "data": {
-          "id": "[%key:common::config_flow::data::id%]",
+          "dev_id": "[%key:common::config_flow::data::dev_id%]",
           "api_key": "[%key:common::config_flow::data::api_key%]"
         }
       },
-      "route_types": {
-        "title": "[%key:common::config_flow::title%]",
+      "route_type": {
+        "title": "[%key:component::public_transport_victoria::config::step::route_type::title%]",
+        "description": "[%key:component::public_transport_victoria::config::step::route_type::description%]",
         "data": {
-          "route_type": "[%key:common::config_flow::data::route_type%]"
+          "route_type": "[%key:component::public_transport_victoria::config::step::route_type::data::route_type%]"
+        },
+        "menu_options": {
+          "route_type_0": "[%key:component::public_transport_victoria::config::step::route_type::menu_options::train%]",
+          "route_type_1": "[%key:component::public_transport_victoria::config::step::route_type::menu_options::tram%]",
+          "route_type_2": "[%key:component::public_transport_victoria::config::step::route_type::menu_options::bus%]",
+          "route_type_3": "[%key:component::public_transport_victoria::config::step::route_type::menu_options::vline%]",
+          "route_type_4": "[%key:component::public_transport_victoria::config::step::route_type::menu_options::night_bus%]"
         }
       },
-      "routes": {
+      "search_method": {
         "title": "[%key:common::config_flow::title%]",
-        "data": {
-          "route": "[%key:common::config_flow::data::route%]"
-        }
-      },
-      "directions": {
-        "title": "[%key:common::config_flow::title%]",
-        "data": {
-          "direction": "[%key:common::config_flow::data::direction%]"
-        }
-      },
-      "stops": {
-        "title": "[%key:common::config_flow::title%]",
-        "data": {
-          "stop": "[%key:common::config_flow::data::stop%]"
+        "menu_options": {
+          "line_name": "[%key:common::config_flow::data::line_name%]",
+          "stop_name": "[%key:common::config_flow::data::stop_name%]",
+          "suburb": "[%key:common::config_flow::data::suburb%]",
+          "map": "[%key:common::config_flow::data::map%]"
         }
       }
     },
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "abort": {

@@ -1,12 +1,5 @@
 {
     "config": {
-        "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
-        },
-        "error": {
-            "cannot_connect": "Unable to connect",
-            "unknown": "Unknown error"
-        },
         "step": {
             "user": {
                 "title": "Set up Public Transport Victoria API",
@@ -15,10 +8,20 @@
                     "api_key": "Developer Key"
                 }
             },
-            "route_types": {
-                "title": "Select your mode of transport",
+            "route_type": {
+                "title": "Select Route Type",
+                "description": "Available route types: {route_types}",
                 "data": {
-                    "route_type": "Select mode"
+                    "route_type": "Route Type"
+                }
+            },
+            "search_method": {
+                "title": "Choose Search Method",
+                "menu_options": {
+                    "line_name": "Search by Line Name",
+                    "stop_name": "Search by Stop Name",
+                    "suburb": "Search by Suburb",
+                    "map": "Search on Map"
                 }
             },
             "routes": {
@@ -39,6 +42,14 @@
                     "stop": "Select stop"
                 }
             }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "abort": {
+            "already_configured": "Device is already configured"
         }
-   }
+    }
 }
