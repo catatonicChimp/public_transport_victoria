@@ -20,7 +20,7 @@ from .const import (
     CONF_API_KEY,
     CONF_ROUTE_TYPE,
     CONF_STOP_ID,
-    CONF_STOP,
+    CONF_STOP_NAME,
     CONF_ROUTE_ID,
     CONF_ROUTE_NAME,
     CONF_DIRECTION_ID,
@@ -194,7 +194,7 @@ class PTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.data.update(user_input)
             return self.async_create_entry(
-                title=f"PTV - {self.data[CONF_STOP]['name']} - {self.data[CONF_DIRECTION_NAME]}",
+                title=f"PTV - {self.data[CONF_STOP_NAME]['name']} - {self.data[CONF_DIRECTION_NAME]}",
                 data=self.data
             )
 

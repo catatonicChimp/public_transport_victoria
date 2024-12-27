@@ -39,7 +39,9 @@ async def collect_stations_by_route_type(routes_api, stops_api):
     stations_by_route_type = defaultdict(set)
 
     for route_type_id in range(5):  # Assuming route types are 0 to 4
-        routes_response = await routes_api.get_routes_for_route_type(route_type_id)
+        # Create a RouteRequest object with the route type
+        route_request = RouteRequest(route_types=[route_type_id])
+        routes_response = await routes_api.get_all_routes(route_request)
         routes = routes_response.get("routes", [])
 
         if routes:
@@ -49,9 +51,9 @@ async def collect_stations_by_route_type(routes_api, stops_api):
                 )
                 stops_response = await stops_api.get_stops_for_route(stop_request)
                 stops = stops_response.get("stops", [])
-                
+
                 for stop in stops:
-                    stations_by_route_type[route_type_id].add(stop['stop_name'])
+                    stations_by_route_type[route_type_id].add(stop["stop_name"])
 
                 print(f"Processed Route: {route['route_name']} (Type: {route_type_id})")
                 print(f"Added {len(stops)} stops")
@@ -60,24 +62,38 @@ async def collect_stations_by_route_type(routes_api, stops_api):
     return stations_by_route_type
 
 
+async def main():
+    hass = HomeAssistant(config_dir="/workspaces/ha_core/config")
 
-# Run the test
-if __name__ == "__main__":
-    asyncio.run(test_api())
-    # # Usage
+    # Set up the aiohttp session
+    async_get_clientsession(hass)
+
+    # Initialize the API client
+    dev_id = "3002893"
+    api_key = "7fb99ba4-1781-4f79-a089-d3c69229f57f"
+    client = PTVApiClient(hass, dev_id, api_key)
+
+    # Initialize the RouteTypesAPI and RoutesAPI
+    route_types_api = RouteTypesAPI(client)
+    routes_api = RoutesAPI(client)
+    stops_api = StopsAPI(client)
+
+    # Get route types
+    route_types = await route_types_api.get_route_types()
+    print("Route Types:", route_types)
+
+    # Now this line should work
     stations_by_route_type = await collect_stations_by_route_type(routes_api, stops_api)
 
     # Print results
-    route_type_names = {
-        0: "Train",
-        1: "Tram",
-        2: "Bus",
-        3: "Vline",
-        4: "Night Bus"
-    }
+    route_type_names = {0: "Train", 1: "Tram", 2: "Bus", 3: "Vline", 4: "Night Bus"}
 
     for route_type, stations in stations_by_route_type.items():
         print(f"\n{route_type_names[route_type]} Stations ({len(stations)}):")
         for station in sorted(stations):
             print(f"- {station}")
-        print("-" * 50)    
+        print("-" * 50)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
