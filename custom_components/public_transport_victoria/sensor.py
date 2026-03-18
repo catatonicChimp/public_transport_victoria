@@ -56,7 +56,7 @@ class DepartureSensor(PtvDepartureEntity, SensorEntity):
         dep = self._departure
         if dep is None:
             return {}
-        return {
+        attrs = {
             "stop_id": dep.get("stop_id"),
             "route_id": dep.get("route_id"),
             "run_id": dep.get("run_id"),
@@ -69,6 +69,11 @@ class DepartureSensor(PtvDepartureEntity, SensorEntity):
             "disruption_ids": dep.get("disruption_ids"),
             "attribution": ATTRIBUTION,
         }
+        # Populated in all-directions mode; empty string in direction-filtered mode
+        direction_name = dep.get("direction_name", "")
+        if direction_name:
+            attrs["direction"] = direction_name
+        return attrs
 
 
 class DepartureMinutesSensor(PtvDepartureEntity, SensorEntity):

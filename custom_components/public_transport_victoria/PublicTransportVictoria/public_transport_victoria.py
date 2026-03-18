@@ -19,14 +19,16 @@ class CannotConnect(Exception):
 
 
 BASE_URL = "https://timetableapi.ptv.vic.gov.au"
-DEPARTURES_PATH = "/v3/departures/route_type/{}/stop/{}/route/{}?direction_id={}&max_results={}"
+DEPARTURES_PATH     = "/v3/departures/route_type/{}/stop/{}/route/{}?direction_id={}&max_results={}"
+DEPARTURES_PATH_ALL = "/v3/departures/route_type/{}/stop/{}/route/{}?max_results={}"
 DIRECTIONS_PATH = "/v3/directions/route/{}"
 DISRUPTIONS_PATH = "/v3/disruptions/route/{}"
 MIN_TIME_BETWEEN_UPDATES = datetime.timedelta(minutes=2)
 MAX_RESULTS = 5
 ROUTE_TYPES_PATH = "/v3/route_types"
 ROUTES_PATH = "/v3/routes?route_types={}"
-STOPS_PATH = "/v3/stops/route/{}/route_type/{}?direction_id={}"
+STOPS_PATH     = "/v3/stops/route/{}/route_type/{}?direction_id={}"
+STOPS_PATH_ALL = "/v3/stops/route/{}/route_type/{}"
 
 # Maps disruption_type substrings (case-insensitive) to a severity tier.
 # First match wins — more specific strings should come first.
@@ -80,12 +82,22 @@ class Connector:
         self.stop_name = stop_name
         self.departures = []
         self.disruptions = []
+        self.direction_map = {}  # {direction_id (int): direction_name} — populated in _init
 
     async def _init(self):
         """Async Init Public Transport Victoria connector."""
-        self.departures_path = DEPARTURES_PATH.format(
-            self.route_type, self.stop, self.route, self.direction, MAX_RESULTS
-        )
+        if self.direction:
+            # Direction-filtered mode: show only services in one direction
+            self.departures_path = DEPARTURES_PATH.format(
+                self.route_type, self.stop, self.route, self.direction, MAX_RESULTS
+            )
+        else:
+            # All-directions mode: show next services regardless of direction;
+            # fetch the direction map so each departure can expose direction_name
+            self.departures_path = DEPARTURES_PATH_ALL.format(
+                self.route_type, self.stop, self.route, MAX_RESULTS
+            )
+            self.direction_map = await self.async_directions(self.route) or {}
         await self.async_update()
 
     async def async_route_types(self):
@@ -179,9 +191,17 @@ class Connector:
                     self.route = route
                     return directions
 
-    async def async_stops(self, route, direction):
-        """Get stops from Public Transport Victoria API."""
-        url = build_URL(self.id, self.api_key, STOPS_PATH.format(route, self.route_type, direction))
+    async def async_stops(self, route, direction=None):
+        """Get stops from Public Transport Victoria API.
+
+        When direction is None, returns all stops on the route regardless of
+        direction — used by the stop-based config flow that skips the direction step.
+        """
+        if direction:
+            path = STOPS_PATH.format(route, self.route_type, direction)
+        else:
+            path = STOPS_PATH_ALL.format(route, self.route_type)
+        url = build_URL(self.id, self.api_key, path)
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
@@ -222,6 +242,7 @@ class Connector:
                         r["departure"] = convert_utc_to_local(effective_utc, self.hass)
                         r["minutes_until"] = minutes_until_departure(effective_utc)
                         r["is_express"] = run_info.get("express_stop_count", 0) > 0 if run_info else False
+                        r["direction_name"] = self.direction_map.get(str(r.get("direction_id", "")), "")
                         self.departures.append(r)
 
         for departure in self.departures:

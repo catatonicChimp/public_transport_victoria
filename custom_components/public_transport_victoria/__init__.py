@@ -32,11 +32,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_API_KEY],
         entry.data[CONF_ROUTE_TYPE],
         entry.data[CONF_ROUTE],
-        entry.data[CONF_DIRECTION],
+        entry.data.get(CONF_DIRECTION),        # None for new entries (all-directions mode)
         entry.data[CONF_STOP],
         entry.data[CONF_ROUTE_TYPE_NAME],
         entry.data[CONF_ROUTE_NAME],
-        entry.data[CONF_DIRECTION_NAME],
+        entry.data.get(CONF_DIRECTION_NAME, ""),
         entry.data[CONF_STOP_NAME],
     )
     # _init() calls async_update() to pre-populate connector.departures

@@ -28,38 +28,28 @@
                     "route": "Select line or route"
                 }
             },
-            "directions": {
-                "title": "Select a direction",
-                "data": {
-                    "direction": "Select direction"
-                }
-            },
             "stops": {
                 "title": "Select your stop",
+                "description": "Departures in all directions will be shown. The direction of each service appears as an attribute on the departure sensors.",
                 "data": {
                     "stop": "Select stop"
                 }
             }
         }
-   },
-   "options": {
-       "error": {
-           "cannot_connect": "Unable to connect",
-           "unknown": "Unknown error"
-       },
-       "step": {
-           "direction": {
-               "title": "Change direction",
-               "data": {
-                   "direction": "Select direction"
-               }
-           },
-           "stop": {
-               "title": "Change stop",
-               "data": {
-                   "stop": "Select stop"
-               }
-           }
-       }
-   }
+    },
+    "options": {
+        "error": {
+            "cannot_connect": "Unable to connect",
+            "unknown": "Unknown error"
+        },
+        "step": {
+            "stop": {
+                "title": "Change stop",
+                "description": "Departures in all directions will be shown from the selected stop.",
+                "data": {
+                    "stop": "Select stop"
+                }
+            }
+        }
+    }
 }
